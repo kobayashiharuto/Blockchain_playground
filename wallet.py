@@ -1,5 +1,8 @@
 from ecdsa import NIST256p
 from ecdsa import SigningKey
+import base58
+import hashlib
+import codecs
 
 
 class Wallet:
@@ -14,6 +17,12 @@ class Wallet:
     @property
     def public_key(self):
         return self._public_key.to_string().hex()
+
+    def generate_blockchain_address(self):
+        public_key_bytes = self._public_key.to_string()
+        sha256_bpk = hashlib.sha256(public_key_bytes)
+        sha256_bpk_digest = sha256_bpk.digest()
+        
 
 
 if __name__ == '__main__':
