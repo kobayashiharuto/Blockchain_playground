@@ -5,6 +5,9 @@ import base58
 import hashlib
 import codecs
 
+from ecdsa.ecdsa import Private_key
+import utils
+
 
 class Wallet:
     def __init__(self):
@@ -54,8 +57,35 @@ class Wallet:
         return blockchain_address
 
 
+class Transaction:
+    def __init__(self, sender_private_key, sender_publick_key, sender_blockchain_address, recipient_blockchain_address, value):
+        self.sender_private_key = sender_private_key
+        self.sender_publick_key = sender_publick_key
+        self.sender_blockchain_address = sender_blockchain_address
+        self.recipient_blockchain_address = recipient_blockchain_address
+        self.value = value
+
+    def generate_signature(self):
+        sha256 = hashlib.sha256()
+        transaction = utils.sorted_dict_by_key({
+            'sender_blockchain_address': self.sender_blockchain_address,
+            'recipient_blockchain_address': self.recipient_blockchain_address,
+            'value': self.value
+        })
+        sha256.update(str(transaction).encode('utf-8'))
+        message = sha256.digest()
+        private_key = SigningKey.from_string(
+            bytes().fromhex(self.sender_private_key), curve=NIST256p)
+        private_key_sign = private_key.sign(message)
+        signature = private_key_sign.hex()
+        return signature
+
+
 if __name__ == '__main__':
     wallet = Wallet()
     print(wallet.private_key)
     print(wallet.public_key)
     print(wallet.blockchain_address)
+    t = Transaction(wallet.private_key, wallet.public_key,
+                    wallet.blockchain_address, 'B', 1.0)
+    print(t.generate_signature())
