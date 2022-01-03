@@ -59,9 +59,9 @@ class Wallet:
 
 
 class Transaction:
-    def __init__(self, sender_private_key, sender_publick_key, sender_blockchain_address, recipient_blockchain_address, value):
+    def __init__(self, sender_private_key, sender_public_key, sender_blockchain_address, recipient_blockchain_address, value):
         self.sender_private_key = sender_private_key
-        self.sender_publick_key = sender_publick_key
+        self.sender_public_key = sender_public_key
         self.sender_blockchain_address = sender_blockchain_address
         self.recipient_blockchain_address = recipient_blockchain_address
         self.value = value

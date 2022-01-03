@@ -1,8 +1,10 @@
+import contextlib
 import logging
 import sys
 import hashlib
 import json
 import time
+import threading
 
 from ecdsa import NIST256p
 from ecdsa import VerifyingKey
@@ -15,6 +17,7 @@ logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 MINING_DIFF = 3
 MINING_SENDER = 'THE BLOCKCHAIN'
 MINING_REWARD = 1.0
+MINING_TIMER_SEC = 20
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,7 @@ class BlockChain:
         self.create_block(0, self.hash({}))
         self.blockchain_address = blockchain_address
         self.port = port
+        self.mining_semaphore = threading.Semaphore(1)
 
     def create_block(self, nonce, previous_hash):
         block = utils.sorted_dict_by_key({
@@ -41,6 +45,14 @@ class BlockChain:
     def hash(self, block):
         sorted_block = json.dumps(block, sort_keys=True)
         return hashlib.sha256(sorted_block.encode()).hexdigest()
+
+    def create_transaction(self, sender_blockchain_address, recipient_blockchain_address, value, sender_public_key, signature):
+        is_transaction = self.add_transaction(
+            sender_blockchain_address, recipient_blockchain_address, value, sender_public_key, signature)
+
+        # TODO NEED sync
+
+        return is_transaction
 
     def add_transaction(self, sender_blockchain_address, recipient_blockchain_address, value, sender_public_key=None, signature=None):
         transaction = utils.sorted_dict_by_key({
@@ -86,16 +98,28 @@ class BlockChain:
         return nonce
 
     def mining(self):
+        if not self.transaction_pool:
+            return False
+
+        nonce = self.proof_of_works()
         self.add_transaction(
             sender_blockchain_address=MINING_SENDER,
             recipient_blockchain_address=self.blockchain_address,
             value=MINING_REWARD
         )
-        nonce = self.proof_of_works()
         previous_hash = self.hash(self.chain[-1])
         self.create_block(nonce, previous_hash)
         logger.info({'action': 'mining', 'status': 'success'})
         return True
+
+    def start_mining(self):
+        is_acuquire = self.mining_semaphore.acquire(blocking=False)
+        if is_acuquire:
+            with contextlib.ExitStack() as stack:
+                stack.callback(self.mining_semaphore.release)
+                self.mining()
+                loop = threading.Timer(MINING_TIMER_SEC, self.start_mining)
+                loop.start()
 
     def calc_total_amout(self, address):
         total_amout = 0
