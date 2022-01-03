@@ -6,6 +6,7 @@ import hashlib
 import codecs
 
 from ecdsa.ecdsa import Private_key
+from blockachain import BlockChain
 import utils
 
 
@@ -82,10 +83,18 @@ class Transaction:
 
 
 if __name__ == '__main__':
-    wallet = Wallet()
-    print(wallet.private_key)
-    print(wallet.public_key)
-    print(wallet.blockchain_address)
-    t = Transaction(wallet.private_key, wallet.public_key,
-                    wallet.blockchain_address, 'B', 1.0)
-    print(t.generate_signature())
+    walletM = Wallet()
+    walletA = Wallet()
+    walletB = Wallet()
+    t = Transaction(walletA.private_key, walletA.public_key,
+                    walletA.blockchain_address, walletB.blockchain_address, 1.0)
+
+    blockchain = BlockChain(blockchain_address=walletM.blockchain_address)
+    is_add = blockchain.add_transaction(walletA.blockchain_address, walletB.blockchain_address,
+                                        1.0, walletA.public_key, t.generate_signature())
+    print('Added?', is_add)
+    blockchain.mining()
+    utils.pprint(blockchain.chain)
+
+    print('A', blockchain.calc_total_amout(walletA.blockchain_address))
+    print('B', blockchain.calc_total_amout(walletB.blockchain_address))

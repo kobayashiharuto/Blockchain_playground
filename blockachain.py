@@ -4,6 +4,10 @@ import hashlib
 import json
 import time
 
+from ecdsa import NIST256p
+from ecdsa import VerifyingKey
+from ecdsa.ecdsa import Public_key
+
 import utils
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -16,11 +20,12 @@ logger = logging.getLogger(__name__)
 
 
 class BlockChain:
-    def __init__(self, blockchain_address=None):
+    def __init__(self, blockchain_address=None, port=None):
         self.transaction_pool = []
         self.chain = []
         self.create_block(0, self.hash({}))
         self.blockchain_address = blockchain_address
+        self.port = port
 
     def create_block(self, nonce, previous_hash):
         block = utils.sorted_dict_by_key({
@@ -37,14 +42,31 @@ class BlockChain:
         sorted_block = json.dumps(block, sort_keys=True)
         return hashlib.sha256(sorted_block.encode()).hexdigest()
 
-    def add_transaction(self, sender_address, recipient_address, value):
+    def add_transaction(self, sender_blockchain_address, recipient_blockchain_address, value, sender_public_key=None, signature=None):
         transaction = utils.sorted_dict_by_key({
-            'sender_address': sender_address,
-            'recipient_address': recipient_address,
+            'sender_blockchain_address': sender_blockchain_address,
+            'recipient_blockchain_address': recipient_blockchain_address,
             'value': float(value)
         })
-        self.transaction_pool.append(transaction)
-        return True
+
+        if sender_blockchain_address == MINING_SENDER:
+            self.transaction_pool.append(transaction)
+            return True
+
+        if self.verify_transaction_signature(sender_public_key, signature, transaction):
+            self.transaction_pool.append(transaction)
+            return True
+        return False
+
+    def verify_transaction_signature(self, sender_publick_key, signature, transaction):
+        sha256 = hashlib.sha256()
+        sha256.update(str(transaction).encode('utf-8'))
+        message = sha256.digest()
+        signature_bytes = bytes().fromhex(signature)
+        public_key = VerifyingKey.from_string(
+            bytes().fromhex(sender_publick_key), curve=NIST256p)
+        verify = public_key.verify(signature_bytes, message)
+        return verify
 
     def valid_proof(self, transactions, previous_hash, nonce, diff=MINING_DIFF):
         guess_block = utils.sorted_dict_by_key({
@@ -65,8 +87,8 @@ class BlockChain:
 
     def mining(self):
         self.add_transaction(
-            sender_address=MINING_SENDER,
-            recipient_address=self.blockchain_address,
+            sender_blockchain_address=MINING_SENDER,
+            recipient_blockchain_address=self.blockchain_address,
             value=MINING_REWARD
         )
         nonce = self.proof_of_works()
@@ -80,9 +102,9 @@ class BlockChain:
         for block in self.chain:
             for transaction in block['transactions']:
                 value = float(transaction['value'])
-                if address == transaction['sender_address']:
+                if address == transaction['sender_blockchain_address']:
                     total_amout -= value
-                if address == transaction['recipient_address']:
+                if address == transaction['recipient_blockchain_address']:
                     total_amout += value
         return total_amout
 
